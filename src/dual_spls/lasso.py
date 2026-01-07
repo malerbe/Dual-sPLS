@@ -28,9 +28,40 @@ def lasso(X, y, ncp, ppnu):
     ###################################
     # Dual-SPLS
     ###################################
+    WW = np.zeros((p,ncp)) # initialising WW, the matrix of loadings
+
     Xdef=Xc.copy() # initializing X for Deflation Step
     for k in range(ncp):
         zm = np.transpose(Xdef) @ yc # covariance vector = correlation variables vs. label vector
         print(zm)
 
-lasso(np.array([[1, 2, 2.5], [2, 2, 2], [3, 2, 1.5]]), np.array([1, 2, 3]), 1, 1)
+        # Optimize nu adaptively according to the shrinking ratio
+        # See Figure 1 in the paper
+        abs_zm = np.sort(abs(zm)) # firstly, take the abs value for all the correlations within zm and sort them
+        print(abs_zm)
+        nu = np.quantile(abs_zm, ppnu, method='lower') 
+        print(nu)
+
+        # Compute z_nu applying the threshold
+        z_nu = utils.soft_threshold(zm, nu)
+        print(z_nu)
+
+        # Compute mu and _lambda according to the result:
+        mu = utils.norm2(z_nu) # needed to compute the weight vector w
+        _lambda = nu/mu # regularization paramter corresponding to what we usually use instead of the dual method
+        print(_lambda, mu)
+
+        # Compute w:
+        w = (mu/(nu * utils.norm1(z_nu) + mu**2))*z_nu
+        print("w:", w)
+        
+        # Build W k-th column for this iteration:
+        WW[:, k] = w
+
+        print(WW)
+
+
+        
+
+
+lasso(np.array([[1, 2, 2.5], [2, 2, 2], [3, 2, 1.5]]), np.array([1, 2, 3]), 1, 0.8)
