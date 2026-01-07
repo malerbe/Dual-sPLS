@@ -1,0 +1,1 @@
+cf docs/PLS.ipynb pour les explications approfondies sur ce qu'est PLS 
