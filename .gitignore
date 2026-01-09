@@ -1,1 +1,4 @@
 data/*
+docs/*.log
+docs/*.aux
+docs/*.synctex.gz
