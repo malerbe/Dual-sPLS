@@ -13,6 +13,10 @@ To fully grasp the mechanics behind the algorithms, it is recommended to follow 
 
 Then the other implementations correspond to the different norms presented in the paper. 
 
+## Usage as a library
+
+À ajouter quand les experimentations seront faites
+
 ## Reference
 
 *   **Original R repository :** [AlsoukiL/dual.spls](https://github.com/AlsoukiL/dual.spls?tab=readme-ov-file)
