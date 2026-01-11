@@ -25,3 +25,4 @@ To fully grasp the mechanics behind the algorithms, it is recommended to follow 
 ### 4. First production Implementation: `src/dual_spls/lasso.py`
 *   Once the theory is mastered, the file `lasso.py` contains the robust, distinct implementation.
 *   It organizes the mathematical prototype into a reusable function `dual_spls_lasso`, handling assertions, deflations, and prediction logic faithful to the original paper.
+
