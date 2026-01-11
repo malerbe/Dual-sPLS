@@ -1,123 +1,133 @@
-# Public libraries importations
 import numpy as np
-
-# Local importations
 import utils
 
-
-def lasso(X, y, ncp, ppnu):
-    """_summary_
+def dual_spls_lasso(X, y, n_components=3, ppnu=0.8):
+    """Dual-SPLS Lasso regression algorithm.
 
     Args:
-        X (np.array): 2D-array containing the data
-        y (np.array): labels vector
-        ncp (float): desired number of components 
-        ppnu (float): shrinking ratio
+        X (np.ndarray): 2D-array containing the input data (n_samples, n_features).
+        y (np.ndarray): 1D-array or vector containing the response/labels.
+        n_components (int, optional): Number of PLS components to extract. Defaults to 3.
+        ppnu (float, optional): Sparsity parameter (0 < ppnu < 1) defining the quantile threshold. Higher values imply more sparsity. Defaults to 0.8.
+
+    Returns:
+        dict: A dictionary containing the model results: 
+            coefficients ('Bhat', 'intercept'),
+            'scores', 
+            'loadings', 
+            'fitted_values', 
+            and residuals.
     """
-    ###################################
-    # Dimensions
-    ###################################
+    #### Center data
+    E, F = X.copy(), y.copy()
+    E, E_mean = utils.center_matrix(E)
+    F, F_mean = utils.center_matrix(F)
+
+    if F.ndim == 1:
+        F = F.reshape(-1, 1)
+
+    #### Initializations
     N, p = X.shape[0], X.shape[1] # nbr of observations, nbr of variables
+    WW = np.zeros((p, n_components)) # W: X weights
+    TT = np.zeros((N, n_components)) # T: X scores
+    listeLambda = np.zeros((n_components))
+    Bhat = np.zeros((p, n_components)) # Matrix to store Beta for each n_components step
+    intercept = np.zeros(n_components)
+    RES = np.zeros((N, n_components)) 
+    zerovar = np.zeros(n_components, dtype=int)
+    YY_pred = np.zeros((N, n_components)) # Fitted values
+    ind_diff0 = {} 
 
-    ###################################
-    # Centering Data
-    ###################################
-    Xc = utils.center_matrix(X)
+    Ec = E.copy()
 
-    mean_X = np.mean(X, axis=0) 
-    mean_y = np.mean(y)
+    for k in range(n_components):
+        # Step 1: base dual-spls:
+        ##############################################################################
+        F = F.reshape(-1, 1)
 
-    yc = y - mean_y
+        z = np.transpose(E) @ F  
 
-    ###################################
-    # Dual-SPLS
-    ###################################
-    WW = np.zeros((p,ncp)) # initialising WW, the matrix of loadings
-    TT = np.zeros((N,ncp)) # initialising TT, the matrix of scores
-    Bhat = np.zeros((p, ncp)) # Matrix to store Beta for each ncp step
-    Intercept = np.zeros(ncp) # To store intercepts
+        #### Modification 1: compute the adaptative nu
+        nu = np.quantile(np.abs(z), ppnu)
 
-    # Additionnal stuff to check the results (see R code) source @ Gemini
-    YY = np.zeros((N, ncp))        # Valeurs prédites (Fitted values)
-    RES = np.zeros((N, ncp))       # Résidus (y - y_pred)
-    zerovar = np.zeros(ncp)        # Nombre de variables à zéro
-    listelambda = np.zeros(ncp)    # Valeur de lambda à chaque itération
-    ind_diff0 = []
+        #### Modification 2: different soft-thresholding
+        z_nu = utils.soft_thresholding(z, nu)
 
-    Xdef=Xc.copy() # initializing X for Deflation Step
-    for k in range(ncp):
-        zm = np.transpose(Xdef) @ yc # covariance vector = correlation variables vs. label vector
+        #### Modification 3: Find paramters 
+        z_nu_1 = np.linalg.norm(z_nu, 1)
+        z_nu_2 = np.linalg.norm(z_nu, 2)
 
-        # Optimize nu adaptively according to the shrinking ratio
-        # See Figure 1 in the paper
-        abs_zm = np.sort(abs(zm)) # firstly, take the abs value for all the correlations within zm and sort them
-        nu = np.quantile(abs_zm, ppnu, method='lower') 
+        mu=z_nu_2 
+        _lambda = nu/mu
 
-        # Compute z_nu applying the threshold
-        z_nu = utils.soft_threshold(zm, nu)
+        #### Compute w
+        scaling_factor = mu / (nu * z_nu_1 + mu**2) # Scaling factor, see theory
+        w = scaling_factor*z_nu
 
-        # Compute mu and _lambda according to the result:
-        mu = utils.norm2(z_nu) # needed to compute the weight vector w
-        _lambda = nu/mu # regularization paramter corresponding to what we usually use instead of the dual method
+        #### Compute t, same as sPLS
+        t = E @ w
 
-        # Compute w:
-        w = (mu/(nu * utils.norm1(z_nu) + mu**2))*z_nu
-        
-        # Build W k-th column for this iteration:
-        WW[:, k] = w
+        # + Modification 4: Normalize t instead of w and c 
+        norm_t = np.linalg.norm(t)
+        if norm_t > 1e-10:
+            t = t / norm_t
+        else:
+            t = np.zeros_like(t)
 
-        # Build T, the matrix of scores
-        t = Xdef @ w
-        t=t/utils.norm2(t)
-        TT[:, k] = t
+        # c is not used by the R package
 
-        # Deflation
-        t = t.reshape(-1, 1) # prepare t to be in the right dimension (N, ) -> (N, 1)
-        Xdef = Xdef - (t @ np.transpose(t) @ Xdef)
 
-        ## Compute intermediate Beta = W * (T^T@T)^-1 * T'y
-        # Current matrixes
-        W_curr = WW[:, :k+1] 
-        T_curr = TT[:, :k+1]
+        ##############################################################################
 
-        # T^T@T
-        Gram = T_curr.T @ T_curr
+        # Store results
+        WW[:, k], TT[:, k] = w.reshape(-1), t.reshape(-1)
+        listeLambda[k] = _lambda
 
-        # Invert --> (T^T@T)^-1
-        inv_Gram = np.linalg.pinv(Gram) 
+        # Deflate E: 
+        E = E - t @ (t.T @ E)
 
-        # Computation and storage:
-        beta_k = W_curr @ inv_Gram @ T_curr.T @ yc
-        Bhat[:, k] = beta_k
+        W_k = WW[:, :k+1]
+        T_k = TT[:, :k+1]
+        L = np.transpose(T_k) @ Ec @ W_k # "backsolve"
+        L = np.triu(L) # "R[row>col]=0"
 
-        ## Compute intercept:
-        Intercept[k] = mean_y - (mean_X @ beta_k)
+        try:
+            L_inv = np.linalg.inv(L)
+        except:
+            L_inv = np.linalg.pinv(L)
 
-        ## Predictions (YY) et Residus (RES) source @ Gemini
-        y_pred = X @ beta_k + Intercept[k]
-        YY[:, k] = y_pred
-        RES[:, k] = y - y_pred
-        nb_zeros = np.sum(np.abs(beta_k) < 1e-10) # Compte les quasi-zéros 
-        zerovar[k] = nb_zeros
-        
-        # Indices des variables NON nulles (ce que le chercheur veut savoir)
-        indices_non_null = np.where(np.abs(beta_k) > 1e-10)[0]
-        ind_diff0.append(indices_non_null)
+        bk = W_k @ L_inv @ T_k.T @ F
+        bk_flat = bk.flatten() 
+        Bhat[:, k] = bk_flat
 
-        print(f"Dual PLS component={k+1} lambda={_lambda:.4f} mu={mu:.4f} nu={nu:.4f} nbzeros={int(nb_zeros)}")
+        intercept[k] = (F_mean - E_mean @ bk).item()
+
+        # Zero variables : count almost zero coefficients
+        is_zero = np.isclose(bk_flat, 0)
+        zerovar[k] = np.sum(is_zero)
+
+        # non-zero indices 
+        indices_non_zero = np.where(~is_zero)[0]
+        ind_diff0[f"in.diff0_{k+1}"] = indices_non_zero.tolist()
+
+        # Predictions (Fitted Values) 
+        # Y_hat = X * beta + intercept
+        pred_k = (X @ bk_flat) + intercept[k]
+        YY_pred[:, k] = pred_k
+
+        # Residuals
+        RES[:, k] = y.flatten() - pred_k
 
     return {
-        "Xmean": mean_X,
+        "Xmean": E_mean,
         "scores": TT,
         "loadings": WW,
         "Bhat": Bhat,
-        "intercept": Intercept,
-        "fitted_values": YY,
+        "intercept": intercept,
+        "fitted_values": YY_pred,
         "residuals": RES,
-        "lambda": listelambda,
+        "lambda": listeLambda,
         "zerovar": zerovar,
         "ind_diff0": ind_diff0,
         "type": "lasso"
     }
-
-print(lasso(np.array([[1, 2, 2.5], [2, 2, 2], [3, 2, 1.5]]), np.array([1, 2, 3]), 2, 0.8))
