@@ -24,14 +24,25 @@ def norm2(x):
     return np.linalg.norm(x, ord=2)
 
 ####### Soft threshold:
-def soft_threshold(Z, nu):
-    """Compute the result of a soft threshold on an array
+# def soft_threshold(Z, nu):
+#     """Compute the result of a soft threshold on an array
 
-    Args:
-        Z (np.array): array
-        u (float): threshold
+#     Args:
+#         Z (np.array): array
+#         u (float): threshold
+#     """
+#     return np.vectorize(lambda u: np.sign(u)*max(abs(u)-nu, 0))(Z)
+
+def soft_thresholding(z, nu):
     """
-    return np.vectorize(lambda u: np.sign(u)*max(abs(u)-nu, 0))(Z)
+    Modified to use nu
+    """
+    sign_z = np.sign(z)
+    abs_z_shifted = np.maximum(np.abs(z) - nu, 0)
+    z_nu = sign_z * abs_z_shifted
+    
+    # On remet le signe et on retourne
+    return z_nu
 
 def center_matrix(M):
     """Center matrix computing means on columns
@@ -43,4 +54,4 @@ def center_matrix(M):
         np.array: centered 2D-matrix
     """
     means = np.mean(M, axis=0)
-    return M - means
+    return M - means, means

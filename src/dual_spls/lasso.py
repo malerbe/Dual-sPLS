@@ -1,5 +1,5 @@
 import numpy as np
-import utils
+from dual_spls import utils
 
 def dual_spls_lasso(X, y, n_components=3, ppnu=0.8):
     """Dual-SPLS Lasso regression algorithm.
