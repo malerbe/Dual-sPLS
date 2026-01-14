@@ -65,6 +65,7 @@ def simulate(n=200,p=[100],nondes=[50],sigmaondes=[0.05], sigma_y=0.5, coefs=[1,
             "y0": y0,
             "sigma_y": sigma_y,
             "sigmaondes": sigmaondes,
-            "G": len(p)}
+            "G": len(p),
+            "sumX": sumX}
 
 simulate(n=200, p=[100, 50], nondes=[50, 50], sigmaondes=[0.05, 0.10])
