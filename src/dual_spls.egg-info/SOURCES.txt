@@ -1,0 +1,16 @@
+README.md
+pyproject.toml
+src/dual_spls/GL.py
+src/dual_spls/GLA.py
+src/dual_spls/GLB.py
+src/dual_spls/GLC.py
+src/dual_spls/LS.py
+src/dual_spls/__init__.py
+src/dual_spls/lasso.py
+src/dual_spls/ridge.py
+src/dual_spls/utils.py
+src/dual_spls.egg-info/PKG-INFO
+src/dual_spls.egg-info/SOURCES.txt
+src/dual_spls.egg-info/dependency_links.txt
+src/dual_spls.egg-info/requires.txt
+src/dual_spls.egg-info/top_level.txt
