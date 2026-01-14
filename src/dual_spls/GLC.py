@@ -1,5 +1,5 @@
 import numpy as np
-import utils
+from dual_spls import utils
 
 def dual_spls_glc(X, y, n_components, ppnu, indG, gamma, verbose=True):
     """Dual-SPLS Group Lasso C regression algorithm.

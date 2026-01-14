@@ -1,5 +1,5 @@
 import numpy as np
-import utils
+from dual_spls import utils
 import itertools
 
 def dual_spls_gla(X, y, n_components, ppnu, indG, verbose=True):

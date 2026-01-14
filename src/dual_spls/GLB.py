@@ -1,5 +1,5 @@
 import numpy as np
-import utils
+from dual_spls import utils
 
 def dual_spls_glb(X, y, n_components, ppnu, indG):
     """Dual-SPLS Group Lasso B regression algorithm.

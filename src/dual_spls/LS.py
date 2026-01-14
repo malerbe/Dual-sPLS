@@ -1,5 +1,5 @@
 import numpy as np
-import utils
+from dual_spls import utils
 
 def d_spls_ls(X, y, n_components, ppnu, verbose=True):
     """

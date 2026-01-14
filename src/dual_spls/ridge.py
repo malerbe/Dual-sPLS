@@ -1,5 +1,5 @@
 import numpy as np
-import utils
+from dual_spls import utils
 
 def d_spls_ridge(X, y, n_components, ppnu, nu2, verbose=True):
     """
