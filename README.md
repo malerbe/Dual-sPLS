@@ -16,4 +16,13 @@ To fully grasp the mechanics behind the algorithms, it is recommended to follow 
 ### 4. First production Implementation: `src/dual_spls/lasso.py`
 
 
+## use library
 
+to install
+
+```
+pip install -e .
+
+```
+
+to learn how to generate synthetic data: notebooks/simulate.ipynb
