@@ -25,6 +25,9 @@ def simulate(n=200,p=[100],nondes=[50],sigmaondes=[0.05], sigma_y=0.5, coefs=[1,
 
     # X Initialisation 
     X = np.zeros((n, np.sum(p)))
+
+    # Pre-calculate modes so they are consistent across observations
+    all_modes = [np.random.uniform(0, 1, k_nondes) for k_nondes in nondes]
     
     # generate n signals
     for i in range(n):
@@ -34,7 +37,7 @@ def simulate(n=200,p=[100],nondes=[50],sigmaondes=[0.05], sigma_y=0.5, coefs=[1,
             # generation of random amplitudes and mode for the gaussians
             x_local = np.linspace(0, 1, p[k])
             amplitudes = np.random.uniform(0, 1, nondes[k])
-            modes = np.random.uniform(0, 1, nondes[k])
+            modes = all_modes[k]
 
             # build signal
             for j in range(nondes[k]):
@@ -68,4 +71,6 @@ def simulate(n=200,p=[100],nondes=[50],sigmaondes=[0.05], sigma_y=0.5, coefs=[1,
             "G": len(p),
             "sumX": sumX}
 
-simulate(n=200, p=[100, 50], nondes=[50, 50], sigmaondes=[0.05, 0.10])
+
+if __name__ == "__main__":
+    simulate(n=200, p=[100, 50], nondes=[50, 50], sigmaondes=[0.05, 0.10])

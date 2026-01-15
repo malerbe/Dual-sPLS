@@ -18,3 +18,6 @@ demander si on devrait ou pas "corriger" la façon dont on applique les coeffs �
   # }
   
 )
+
+
+Aussi demander à vérifier la génération du spectre
