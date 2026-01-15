@@ -26,3 +26,8 @@ pip install -e .
 ```
 
 to learn how to generate synthetic data: notebooks/simulate.ipynb
+
+
+## original repo
+
+https://github.com/AlsoukiL/dual.spls
