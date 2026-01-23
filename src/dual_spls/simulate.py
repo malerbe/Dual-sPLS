@@ -56,7 +56,7 @@ def simulate(n=200,p=[100],nondes=[50],sigmaondes=[0.05], sigma_y=0.5, coefs=[1,
     # computing y0 as a sum of intervals of X
     sumX = np.zeros((n, len(coefs)))
     for i in range(len(coefs)):
-        sumX[:, i] = np.sum(X[:, pif[i]:pif[i+1]], axis=1)
+        sumX[:, i] = np.sum(X[:, pif[i]:pif[i+1]+1], axis=1)
 
     y0 = sumX @ coefs
 
