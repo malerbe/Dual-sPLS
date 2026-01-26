@@ -165,7 +165,7 @@ def dual_spls_glc(X, y, n_components, ppnu, indG, gamma, verbose=True):
         RES[:, k] = y.flatten() - pred_k
         
         if verbose:
-             print(f'Dual PLS GL-C ic={k+1} nbzeros={zerovar[:, k]}')
+             print(f'Dual PLS GLC ic={k+1} nbzeros={zerovar[k]}')
 
     return {
         "Xmean": E_mean,

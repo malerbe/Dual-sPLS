@@ -1,7 +1,7 @@
 import numpy as np
 from dual_spls import utils
 
-def dual_spls_glb(X, y, n_components, ppnu, indG):
+def dual_spls_glb(X, y, n_components, ppnu, indG, verbose=True):
     """Dual-SPLS Group Lasso B regression algorithm.
 
     Args:
@@ -149,6 +149,10 @@ def dual_spls_glb(X, y, n_components, ppnu, indG):
 
         # Residuals
         RES[:, k] = y.flatten() - pred_k
+
+        if verbose:
+             print(f'Dual PLS GLB ic={k+1} nbzeros={zerovar[k]}')
+
 
     return {
         "Xmean": E_mean,

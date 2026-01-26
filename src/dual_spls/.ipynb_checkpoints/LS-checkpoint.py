@@ -94,7 +94,7 @@ def d_spls_ls(X, y, n_components, ppnu, verbose=True):
         
         # Determine threshold nu based on 'ppnu' percentile
         w_ls_abs = np.abs(w_ls)
-        nu =  utils.quantile_d(w_ls_abs, ppnu)
+        nu = np.quantile(w_ls_abs, ppnu)
         
         # Soft thresholding to get znu
         # znu = sign(w_ls) * max(|w_ls| - nu, 0)

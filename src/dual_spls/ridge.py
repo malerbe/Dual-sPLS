@@ -82,7 +82,7 @@ def d_spls_ridge(X, y, n_components, ppnu, nu2, verbose=True):
         
         # Sort absolute values to find threshold
         ZN_abs = np.abs(ZN)
-        nu1 = utils.quantile_d(ZN_abs, ppnu)
+        nu1 = np.quantile(ZN_abs, ppnu)
         
         # z12 = Soft Thresholding of ZN by nu1
         z12 = np.sign(ZN) * np.maximum(ZN_abs - nu1, 0)

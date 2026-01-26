@@ -243,3 +243,165 @@ def dual_spls_gla(X, y, n_components, ppnu, indG, verbose=True):
         "ind_diff0": ind_diff0,
         "type": "GLA"
     }
+
+
+def dual_spls_gla_random(X, y, n_components, ppnu, indG, n_samples=1000, verbose=True, noise_level=1e-6):
+    """
+    Dual-SPLS GLA avec Random Search amélioré pour éviter stagnation et explosion mémoire.
+    
+    Args:
+        X: np.ndarray (n_samples, n_features)
+        y: np.ndarray (n_samples,)
+        n_components: int
+        ppnu: list ou np.ndarray de sparsity params par groupe
+        indG: np.ndarray des indices de groupe (1-based)
+        n_samples: int, nombre de combinaisons aléatoires à tester
+        noise_level: float, bruit ajouté à w pour éviter stagnation
+        verbose: bool
+    Returns:
+        dict: résultats similaires à l'original
+    """
+    # Centering
+    E = X.copy()
+    F = y.copy().reshape(-1, 1)
+    E_mean = E.mean(axis=0)
+    F_mean = F.mean(axis=0)
+    E -= E_mean
+    F -= F_mean
+
+    N, p = X.shape
+    nG = np.max(indG)
+    PP = np.array([np.sum(indG == u) for u in range(1, nG + 1)])
+
+    WW = np.zeros((p, n_components))
+    TT = np.zeros((N, n_components))
+    Bhat = np.zeros((p, n_components))
+    YY_pred = np.zeros((N, n_components))
+    RES = np.zeros((N, n_components))
+    intercept = np.zeros(n_components)
+    zerovar = np.zeros((nG, n_components), dtype=int)
+    listeLambda = np.zeros((nG, n_components))
+    listeAlpha = np.zeros((nG, n_components))
+    ind_diff0 = {}
+
+    Ec = E.copy()  # original centered X for backsolve
+
+    for k in range(n_components):
+        # Step 1: compute Z
+        Z = (E.T @ F).flatten()
+
+        # nu, Znu, norms
+        nu = np.zeros(nG)
+        Znu = np.zeros(p)
+        norm1Znu = np.zeros(nG)
+        norm2Znu = np.zeros(nG)
+
+        for ig in range(1, nG + 1):
+            idx_group = np.where(indG == ig)[0]
+            Zs = np.sort(np.abs(Z[idx_group]))
+            d = len(Zs)
+            Zsp = np.arange(1, d + 1) / d
+            iz = np.argmin(np.abs(Zsp - ppnu[ig-1]))
+            nu[ig-1] = Zs[iz]
+            val_group = Z[idx_group]
+            Znu[idx_group] = np.sign(val_group) * np.maximum(np.abs(val_group) - nu[ig-1], 0)
+            norm1Znu[ig-1] = np.linalg.norm(Znu[idx_group], 1)
+            norm2Znu[ig-1] = np.linalg.norm(Znu[idx_group], 2)
+
+        mu = np.sum(norm2Znu)
+        mu = max(mu, 1e-6)  # éviter division par zéro
+        alpha = norm2Znu / mu
+        listeAlpha[:, k] = alpha
+        listeLambda[:, k] = nu / (mu * alpha + 1e-12)  # éviter NaN
+
+        # Random search for w
+        ranges = [np.linspace(0, 1.0 / alpha[ig] / (1.0 + (nu[ig]*norm1Znu[ig]/(mu*alpha[ig])**2)), 10) 
+                  for ig in range(nG-1)]
+        ranges_array = np.array(ranges)
+
+        rand_idx = np.random.randint(0, 10, size=(n_samples, nG-1))
+        comb = ranges_array[np.arange(nG-1)[:, None], rand_idx.T].T
+
+        # last column
+        num_terms = comb * alpha[:nG-1] * (1 + (nu[:nG-1]*norm1Znu[:nG-1]/(mu*alpha[:nG-1])**2))
+        denom = alpha[nG-1] * (1 + (nu[nG-1]*norm1Znu[nG-1]/(mu*alpha[nG-1])**2))
+        num = 1 - np.sum(num_terms, axis=1)
+        comb_last = (num / denom).reshape(-1, 1)
+        full_comb = np.hstack((comb, comb_last))
+        full_comb = full_comb[full_comb[:, -1] >= 0]
+
+        best_rmse = np.inf
+        best_w = np.zeros(p)
+
+        for icomb in range(full_comb.shape[0]):
+            w_curr = np.zeros(p)
+            for ig in range(1, nG+1):
+                idx_group = np.where(indG == ig)[0]
+                w_curr[idx_group] = (full_comb[icomb, ig-1] / (mu*alpha[ig-1])) * Znu[idx_group]
+
+            # Add small noise to break ties
+            w_curr += np.random.normal(0, noise_level, size=p)
+
+            t_curr = E @ w_curr
+            norm_t = np.linalg.norm(t_curr)
+            if norm_t > 1e-10:
+                t_curr /= norm_t
+            else:
+                t_curr[:] = 0
+
+            yy_pred_temp = (X @ w_curr) + F_mean
+            rmse = np.mean((y.flatten() - yy_pred_temp.flatten())**2)
+            if rmse < best_rmse:
+                best_rmse = rmse
+                best_w = w_curr
+
+        WW[:, k] = best_w
+        t = E @ best_w
+        t /= (np.linalg.norm(t) + 1e-12)
+        TT[:, k] = t
+
+        # Deflation
+        E -= t.reshape(-1,1) @ (t.reshape(-1,1).T @ E)
+
+        # Backsolve for Bhat, intercept
+        W_k = WW[:, :k+1]
+        T_k = TT[:, :k+1]
+        L = np.triu(T_k.T @ Ec @ W_k)
+        try:
+            L_inv = np.linalg.inv(L)
+        except:
+            L_inv = np.linalg.pinv(L)
+        bk = W_k @ L_inv @ T_k.T @ F
+        bk_flat = bk.flatten()
+        Bhat[:, k] = bk_flat
+        intercept[k] = (F_mean - E_mean @ bk).item()
+
+        # Zeros per group
+        for ig in range(1, nG+1):
+            idx_group = np.where(indG == ig)[0]
+            zerovar[ig-1, k] = np.sum(np.isclose(Bhat[idx_group, k], 0))
+        
+        ind_diff0[f"in.diff0_{k+1}"] = np.where(~np.isclose(bk_flat, 0))[0].tolist()
+
+        # Predictions & residuals
+        YY_pred[:, k] = (X @ bk_flat) + intercept[k]
+        RES[:, k] = y.flatten() - YY_pred[:, k]
+
+        if verbose:
+            print(f"Dual PLS GLA ic={k+1}, nbzeros={np.sum(np.isclose(best_w, 0))}")
+
+    return {
+        "Xmean": E_mean,
+        "scores": TT,
+        "loadings": WW,
+        "Bhat": Bhat,
+        "intercept": intercept,
+        "fitted_values": YY_pred,
+        "residuals": RES,
+        "lambda": listeLambda,
+        "alpha": listeAlpha,
+        "zerovar": zerovar,
+        "PP": PP,
+        "ind_diff0": ind_diff0,
+        "type": "GLA"
+    }

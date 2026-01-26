@@ -1,7 +1,7 @@
 import numpy as np
 from dual_spls import utils
 
-def dual_spls_lasso(X, y, n_components=3, ppnu=0.8):
+def dual_spls_lasso(X, y, n_components=3, ppnu=0.8, verbose=True):
     """Dual-SPLS Lasso regression algorithm.
 
     Args:
@@ -117,6 +117,9 @@ def dual_spls_lasso(X, y, n_components=3, ppnu=0.8):
 
         # Residuals
         RES[:, k] = y.flatten() - pred_k
+
+        if verbose:
+            print(f"Dual PLS Lasso ic={k+1} lambda1={_lambda:.4f} mu={mu:.4f} nu={nu} nbzeros={zerovar[k]}")
 
     return {
         "Xmean": E_mean,
