@@ -8,6 +8,7 @@ src/dual_spls/LS.py
 src/dual_spls/__init__.py
 src/dual_spls/lasso.py
 src/dual_spls/ridge.py
+src/dual_spls/simulate.py
 src/dual_spls/utils.py
 src/dual_spls.egg-info/PKG-INFO
 src/dual_spls.egg-info/SOURCES.txt
