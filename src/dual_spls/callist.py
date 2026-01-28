@@ -1,7 +1,7 @@
 import numpy as np
 from dual_spls.datatype import datatype
 
-def callist(datatype, pcal):
+def calList(datatype, pcal):
     """Determine the number of observations to select from each cell splitted by type.
 
     Args:
