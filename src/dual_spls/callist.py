@@ -16,6 +16,7 @@ def get_calList(bin_indices, pcal):
     assert (pcal >= 0) and (pcal <= 100), "pcal must be within [0, 100]"
 
     n_cells = len(np.unique(bin_indices))
+    n = len(bin_indices)
 
     # count the number of occurence for each index
     y_counts = np.bincount(bin_indices.astype(int), minlength=n_cells)
@@ -57,4 +58,6 @@ if __name__ == "__main__":
     X, y = simulation_results["X"], simulation_results["y"]
 
     bin_indices = get_bin_indices(y, n_bins=10)
-    print(get_calList(bin_indices, pcal=90))
+    print(bin_indices)
+    calList = get_calList(bin_indices, pcal=90)
+    print(calList, calList.shape)

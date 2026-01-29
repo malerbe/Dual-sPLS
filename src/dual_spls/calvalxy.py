@@ -1,6 +1,7 @@
 from sklearn.decomposition import PCA
 from dual_spls.get_bin_indices import get_bin_indices
 from dual_spls.callist import get_calList
+from dual_spls.split import split
 
 def calvalXY(X,
              y=None,
@@ -94,7 +95,7 @@ def calvalXY(X,
             X_proc = scores / singular_values 
 
         
-
+    # cal_indices = 
 
 
 
