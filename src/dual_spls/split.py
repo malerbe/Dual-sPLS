@@ -21,6 +21,13 @@ def split(X,
     # check args consistency
     assert len(X_bin_indices) == X.shape[0]
 
+    # check that the amount of available points in X_bin_indices is enough to answer the requested amount in calList
+    for i in np.unique(X_bin_indices):
+        assert calList[i] <= len(np.where(X_bin_indices == i)[0]), f"{calList[i]} =/= {len(np.where(X_bin_indices == i)[0])}"
+
+    print(X.shape, len(X_bin_indices))
+    print(X_bin_indices)
+    print(np.where(X_bin_indices == 2))
 
 if __name__ == "__main__":
     from dual_spls.simulate import simulate
@@ -45,6 +52,6 @@ if __name__ == "__main__":
     X, y = simulation_results["X"], simulation_results["y"]
 
     bin_indices = get_bin_indices(y, n_bins=10)
-    calList = get_calList(bin_indices, pcal=50)
+    calList = get_calList(bin_indices, pcal=90)
 
     split(X, X_bin_indices=bin_indices, calList=calList)

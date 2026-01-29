@@ -44,7 +44,7 @@ def get_bin_indices(y, n_bins):
 
             current_sorted_index += 1
 
-    return bin_indices
+    return bin_indices.astype(int)
 
 if __name__ == "__main__":
     from dual_spls.simulate import simulate
