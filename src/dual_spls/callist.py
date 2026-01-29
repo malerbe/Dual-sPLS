@@ -1,7 +1,7 @@
 import numpy as np
-from dual_spls.datatype import datatype
+from dual_spls.get_bin_indices import get_bin_indices
 
-def calList(datatype, pcal):
+def get_calList(bin_indices, pcal):
     """Determine the number of observations to select from each cell splitted by type.
 
     This will potentially use the whole available data in a cell and not keep any for the
@@ -15,10 +15,10 @@ def calList(datatype, pcal):
     """
     assert (pcal >= 0) and (pcal <= 100), "pcal must be within [0, 100]"
 
-    n_cells = len(np.unique(datatype))
+    n_cells = len(np.unique(bin_indices))
 
     # count the number of occurence for each index
-    y_counts = np.bincount(datatype, minlength=n_cells)
+    y_counts = np.bincount(bin_indices.astype(int), minlength=n_cells)
 
     l = np.zeros(n_cells)
 
@@ -56,5 +56,5 @@ if __name__ == "__main__":
     simulation_results = simulate(n=n, p=p, nondes=nondes , sigmaondes=sigmaondes, sigma_y=sigma_y, coefs=coefs)
     X, y = simulation_results["X"], simulation_results["y"]
 
-    _datatype = datatype(y, n_cells=10)
-    print(callist(_datatype, pcal=90))
+    bin_indices = get_bin_indices(y, n_bins=10)
+    print(get_calList(bin_indices, pcal=90))

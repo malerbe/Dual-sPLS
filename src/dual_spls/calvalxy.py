@@ -1,6 +1,6 @@
 from sklearn.decomposition import PCA
-from dual_spls.datatype import datatype
-from dual_spls.callist import calList
+from dual_spls.get_bin_indices import get_bin_indices
+from dual_spls.callist import get_calList
 
 def calvalXY(X,
              y=None,
@@ -41,7 +41,7 @@ def calvalXY(X,
     """
 
     # Check inputs
-    assert method in ["euclidian"], f"Method {method} invalid."
+    assert method in ["euclidian", "pca_euclian", "svd_euclidian"], f"Method {method} invalid."
     assert dim_reduction in ["pca"], f"Dimensionnality reduction methods {dim_reduction} invalid." # Implement SVD as well ? 
     assert pc > 0, f"pc (the number of component for PCA/SVD) must be strictly positive."
     assert (y is None and datatype is not None) or (y is not None), "If y is None, then a datatype vector must be given as an argument."
@@ -54,21 +54,48 @@ def calvalXY(X,
 
     # Center data (if appliable)
     if center:
-        X = (X - X.mean(axis=0)).copy()
+        X_proc = (X - X.mean(axis=0)).copy()
         if verbose: print("[INFO] Centered data")
+    else:
+        X_proc = X.copy()
 
     # Split the observations into groups
     if datatype is None:
-        _datatype = datatype(y, n_cells=n_cells)
+        bin_indices = get_bin_indices(y, n_cells=n_cells)
 
     # Decide how much observations to take in each group
     # pcal = pourcentage for calibration
     if calList is None:
-        _calList = calList(_datatype, pcal)
+        calList = get_calList(bin_indices, pcal)
 
-    # Apply PCA
-    pca = PCA(n_components=pc)
-    X_reduced = pca.fit_transform(X)
+    # Apply dimensionnality reduction depending the method:
+    if method in ["pca_euclidian", "svd_euclidian"]:
+        pca = PCA(n_components=pc)
+        scores = pca.fit_transform(X_proc)
+
+        if method == "pca_euclidian":
+            X_proc = scores
+
+        elif method == "svd_euclidian":
+            """
+            SVD: X = U @ Sigma @ V^T
+
+            PCA: T = X @ V 
+
+            ==> T = (U @ Sigma @ V^T) @ V
+
+            V is orthogonal => V^TV = I
+
+            ==> T = U @ Sigma
+
+            ==> U = T @ Sigma^{-1}
+            """
+            singular_values = pca.singular_values_
+            X_proc = scores / singular_values 
+
+        
+
+
 
 
 
