@@ -4,6 +4,9 @@ from dual_spls.datatype import datatype
 def calList(datatype, pcal):
     """Determine the number of observations to select from each cell splitted by type.
 
+    This will potentially use the whole available data in a cell and not keep any for the
+    validation. 
+
     Args:
         datatype (list): y-sized array. For i in len(y), datatype[i] gives the split to which the
                     i-th element of y is attributed. Typically computed by type (see type.py)
@@ -14,20 +17,13 @@ def calList(datatype, pcal):
 
     n_cells = len(np.unique(datatype))
 
-    # TO BE REPLACED BY THE MORE EFFECTIVE NUMPY FUNCTION
-    #####################################################
-    y_counts = np.zeros(n_cells)
-    for k in range(len(datatype)):
-        y_counts[datatype[k]] += 1
-    ######################################################
+    # count the number of occurence for each index
+    y_counts = np.bincount(datatype, minlength=n_cells)
 
     l = np.zeros(n_cells)
 
     rep = np.floor(n*pcal/100) # number of observations to select
 
-    # TO BE REPLACED BY A MORE EFFECTIVE ALGORITHM. ANALYTIC SOLUTION ? 
-    # AT LEAST IN THE BEST CASE WHERE REP/n_cells < y_counts[j] for all j ? 
-    #####################################################
     i = 0
     while (i < rep): # select observations until the right amount is selected
         for j in range(n_cells): # for each cell 
