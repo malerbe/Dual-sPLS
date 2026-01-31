@@ -1,6 +1,5 @@
 import numpy as np
-
-
+from scipy.spatial.distance import cdist
 
 def split(X,
           X_bin_indices,
@@ -9,6 +8,10 @@ def split(X,
 
     Divides the data X into a calibration and a validation set using the Kennard and Stone strategy for
     each group at a time and according to the number of calibration desired from each group.
+
+    The Kennard-Stone strategy aims to cover the space as much as possible by choosing calibration points
+    iteratively where the calibration space is the emptiest.
+
 
     Args:
         X (np.array): a numeric matrix
@@ -21,13 +24,94 @@ def split(X,
     # check args consistency
     assert len(X_bin_indices) == X.shape[0]
 
+    # copy calList to be able to modify it
+    calList = calList.astype(int).copy()
+
     # check that the amount of available points in X_bin_indices is enough to answer the requested amount in calList
     for i in np.unique(X_bin_indices):
         assert calList[i] <= len(np.where(X_bin_indices == i)[0]), f"{calList[i]} =/= {len(np.where(X_bin_indices == i)[0])}"
 
-    print(X.shape, len(X_bin_indices))
-    print(X_bin_indices)
-    print(np.where(X_bin_indices == 2))
+    # get number of bins
+    n_grps = len(calList) 
+
+    # get number of observations
+    n_samples = X.shape[0]
+
+    # compute X centroid
+    G = np.mean(X, axis=0).reshape(1, -1)
+
+    # compute the distance matrix between each observation of X and the centroid
+    dists_to_center = cdist(X, G, metric='euclidean').flatten()
+
+    # find the furthest data point
+    first_idx = np.argmax(dists_to_center)
+    ind_cal = [first_idx]
+
+    # update quota for first point's group
+    group_first = X_bin_indices[first_idx]
+    calList[group_first] -= 1
+
+    current_group_idx = group_first # current group = group of the frist point for now
+
+    # Main Loop:
+    while np.sum(calList) > 0:
+        # 1. Find the next group (Round-Robin)
+        target_group = -1
+
+        # check groups cirularly from current_group + 1
+        for offset in range(1, n_grps + 1):
+            g = (current_group_idx + offset) % n_grps
+            if calList[g] > 0: # if there is still available quota for the group...
+                target_group = g # ...target it 
+                break
+
+        if target_group == -1:
+            # Cela ne devrait pas arriver si la somme > 0, mais ça évite le crash obscur
+            break 
+        
+        current_group_idx = target_group
+
+        # 2. Find the maxmin point for calibration
+        # identify candidate points (must be in current group & not already in ind_cal)
+
+        # make boolean mask
+        is_in_group = (X_bin_indices == target_group)
+        is_selected = np.zeros(n_samples, dtype=bool)
+        is_selected[ind_cal] = True
+
+        # apply mask to get candidates indices
+        candidates_mask = is_in_group & (~is_selected)
+        candidates_indices = np.where(candidates_mask)[0]
+
+        if len(candidates_indices) == 0:
+            calList[target_group] = 0 
+            continue
+
+        # compute distances : candidates vs. points already chosen (ind_cal)
+        d_mat = cdist(X[ind_cal, :], X[candidates_indices, :], metric='euclidean')
+
+        # the distance of each candidate to the closest chosen point
+        min_dists = np.min(d_mat, axis=0)
+
+        # choose the candidate with the max min distance
+        # "chosse the points that would be the least redoundant for this group
+        # and which will help cover the space more"
+        best_local_idx = np.argmax(min_dists)
+        best_global_idx = candidates_indices[best_local_idx]
+
+        ind_cal.append(best_global_idx)
+        calList[target_group] -= 1
+
+    ind_cal = np.array(ind_cal)
+
+    # ind_val = points which haven't been chosen
+    mask_val = np.ones(n_samples, dtype=bool)
+    mask_val[ind_cal] = False
+    ind_val = np.where(mask_val)[0]
+
+    return {"indcal": ind_cal, "indval": ind_val}
+
+
 
 if __name__ == "__main__":
     from dual_spls.simulate import simulate
@@ -54,4 +138,54 @@ if __name__ == "__main__":
     bin_indices = get_bin_indices(y, n_bins=10)
     calList = get_calList(bin_indices, pcal=90)
 
-    split(X, X_bin_indices=bin_indices, calList=calList)
+    split(X, X_bin_indices=bin_indices, calList=calList)   
+
+    ############################################
+    # Visualisation code by @geminio 3 pro
+    ############################################
+
+    res = split(X, X_bin_indices=bin_indices, calList=calList)
+    ind_cal = res["indcal"]
+    ind_val = res["indval"]
+
+    import matplotlib.pyplot as plt
+    import matplotlib.cm as cm
+    from sklearn.decomposition import PCA
+
+    pca = PCA(n_components=2)
+    X_pca = pca.fit_transform(X)
+    var_exp = pca.explained_variance_ratio_
+
+    unique_groups = np.unique(bin_indices)
+    n_groups = len(unique_groups)
+    colors = cm.get_cmap('tab10', n_groups) 
+
+    plt.figure(figsize=(12, 10))
+
+    for i, group_idx in enumerate(unique_groups):
+        color = colors(i)
+        
+        idx_in_group = np.where(bin_indices == group_idx)[0]
+        
+        idx_g_cal = np.intersect1d(idx_in_group, ind_cal)
+        idx_g_val = np.intersect1d(idx_in_group, ind_val)
+        
+        plt.scatter(X_pca[idx_g_val, 0], X_pca[idx_g_val, 1],
+                    color=color, marker='o', s=20, alpha=0.2, 
+                    label=None) 
+
+        plt.scatter(X_pca[idx_g_cal, 0], X_pca[idx_g_cal, 1],
+                    color=color, marker='D', s=60, alpha=1.0, edgecolors='black', linewidth=1,
+                    label=f'Group {int(group_idx)}')
+        
+    plt.xlabel(f"PC1 ({var_exp[0]:.2%})")
+    plt.ylabel(f"PC2 ({var_exp[1]:.2%})")
+    plt.legend(title="Groups (Calibration)", bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.grid(True, linestyle='--', alpha=0.5)
+    plt.tight_layout()
+    
+    plt.show()
+
+    ############################################
+    ############################################
+    ############################################
