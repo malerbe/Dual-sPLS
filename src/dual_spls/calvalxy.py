@@ -39,6 +39,9 @@ def calvalXY(X,
                             the number of component to consider
                             when applying the SVD transformation
                             or the PCA. Defaults to 9.
+
+    Returns:
+        (dict) {"indcal": ind_cal, "indval": ind_val}
     """
 
     # Check inputs
