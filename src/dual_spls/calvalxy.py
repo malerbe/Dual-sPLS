@@ -6,8 +6,8 @@ from dual_spls.split import split
 def calvalXY(X,
              y=None,
              pcal=None,
-             datatype=None,
-             n_cells=10,
+             bin_indices=None,
+             n_bins=10,
              calList=None,
              center=True,
              method="euclidian",
@@ -42,16 +42,21 @@ def calvalXY(X,
     """
 
     # Check inputs
-    assert method in ["euclidian", "pca_euclian", "svd_euclidian"], f"Method {method} invalid."
+    assert method in ["euclidian", "pca_euclidian", "svd_euclidian"], f"Method {method} invalid."
     assert dim_reduction in ["pca"], f"Dimensionnality reduction methods {dim_reduction} invalid." # Implement SVD as well ? 
     assert pc > 0, f"pc (the number of component for PCA/SVD) must be strictly positive."
-    assert (y is None and datatype is not None) or (y is not None), "If y is None, then a datatype vector must be given as an argument."
+    assert (y is None and bin_indices is not None) or (y is not None), "If y is None, then a datatype vector must be given as an argument."
+
+    if pcal is None:
+        if verbose:
+            print(f"[INFO] pcal not specified. Using default value 90%")
+        pcal = 90
 
     if verbose and pc < 1:
         print(f"[INFO] pc = {pc} < 1 - The number of components will be computed automatically to reach 90% of X variance")
 
-    if (datatype is not None) and (n_cells != None) and verbose:
-        print(f"[INFO] n_cells is set to {n_cells} but will not be used as a datatype vector was given as an argument.")
+    if (bin_indices is not None) and (n_bins != None) and verbose:
+        print(f"[INFO] n_cells is set to {n_bins} but will not be used as a datatype vector was given as an argument.")
 
     # Center data (if appliable)
     if center:
@@ -61,8 +66,8 @@ def calvalXY(X,
         X_proc = X.copy()
 
     # Split the observations into groups
-    if datatype is None:
-        bin_indices = get_bin_indices(y, n_cells=n_cells)
+    if bin_indices is None:
+        bin_indices = get_bin_indices(y, n_bins=n_bins)
 
     # Decide how much observations to take in each group
     # pcal = pourcentage for calibration
@@ -95,14 +100,9 @@ def calvalXY(X,
             X_proc = scores / singular_values 
 
         
-    # cal_indices = 
+    result = split(X_proc, X_bin_indices=bin_indices, calList=calList)
 
-
-
-
-
-    
-
+    return result
 
 if __name__ == "__main__":
     from dual_spls.simulate import simulate
@@ -124,7 +124,20 @@ if __name__ == "__main__":
     simulation_results = simulate(n=n, p=p, nondes=nondes , sigmaondes=sigmaondes, sigma_y=sigma_y, coefs=coefs)
     X, y = simulation_results["X"], simulation_results["y"]
 
+    # test 3 methods
     calvalXY(X,
              y=y,
              center = True,
              pc=0.9)
+    
+    calvalXY(X,
+             y=y,
+             center = True,
+             pc=0.9,
+             method='pca_euclidian')
+    
+    calvalXY(X,
+             y=y,
+             center = True,
+             pc=0.9,
+             method='svd_euclidian')
