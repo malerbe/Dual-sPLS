@@ -1,6 +1,6 @@
 # Dual-sPLS: Full theory and reimplementation from R to Python
 
-The goal of this repository is to reimplement the paper [] from R to Python. It can be used both as a learning tool to understand the theory behind the algorithm and as a standalone installable library. 
+The goal of this repository is to reimplement the paper [Dual-sPLS: a family of Dual Sparse Partial Least Squares regressions for feature selection and prediction with tunable sparsity...](https://arxiv.org/abs/2301.07206) from R to Python. It can be used both as a learning tool to understand the theory behind the algorithm and as a standalone installable library. 
 
 ## Usage
 
