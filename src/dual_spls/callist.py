@@ -28,7 +28,7 @@ def get_calList(bin_indices, pcal, n_bins):
     while (i < rep): # select observations until the right amount is selected
         for j in range(n_bins): # for each cell 
             
-            if y_counts[j] > 0:
+            if y_counts[j] > 0 and i < rep:
                 # if there is at least one observation available 
                 y_counts[j] -= 1 # "take it" from original datatype
                 l[j]+=1 # "put it" in the callist
