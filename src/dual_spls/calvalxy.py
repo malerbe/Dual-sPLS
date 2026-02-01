@@ -75,7 +75,7 @@ def calvalXY(X,
     # Decide how much observations to take in each group
     # pcal = pourcentage for calibration
     if calList is None:
-        calList = get_calList(bin_indices, pcal)
+        calList = get_calList(bin_indices, pcal, n_bins=n_bins)
 
     # Apply dimensionnality reduction depending the method:
     if method in ["pca_euclidian", "svd_euclidian"]:
