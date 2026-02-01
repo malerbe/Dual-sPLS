@@ -20,9 +20,6 @@ import sys
 from pathlib import Path
 import seaborn as sns 
 import matplotlib.pyplot as plt
-import matplotlib.cm     as cm
-import matplotlib.colors as colors
-
 
 from sklearn.model_selection import train_test_split, KFold
 from sklearn.metrics         import mean_squared_error
@@ -108,16 +105,16 @@ y = pd.read_csv(
 
 # ----------- Params ----------- #
 
-n_comp = 50
+n_comp = 6
 labels = AgglomerativeClustering(n_clusters=25).fit(X.T).labels_  # for GL*
 indG = labels + 1  # 1-based groups vector
 
 # Sparsity params
 nG = indG.max()    # groups number. same for all GL*
 
-ppnu_grid = np.linspace(0.01, 1, 2)
-nu2_grid = np.logspace(-3, 1, 5)         # For Ridge
-gamma_grid = np.linspace(0.01, 1.0, 2)  # For GLC
+ppnu_grid = np.linspace(0.01, 1, 10)
+nu2_grid = np.logspace(-3, 1, 7)         # For Ridge
+gamma_grid = np.linspace(0.01, 1.0, 10)  # For GLC
 
 
 # In[5]:
@@ -274,7 +271,7 @@ for ppnu in ppnu_grid:
             }
 
 
-# In[ ]:
+# In[6]:
 
 
 # Best models per norms
@@ -283,7 +280,7 @@ for k, v in best_models.items():
     print(f"{k:5s} | RMSE = {v['rmse']:.4f} | params = {v['params']}")
 
 
-# In[ ]:
+# In[20]:
 
 
 # Train Dual-sPLS for different norms using best hyperparameters
@@ -346,7 +343,7 @@ models["GLC"] = dual_spls_glc(
 
 
 
-# In[ ]:
+# In[21]:
 
 
 # RMSE from number of latent components for different norms
@@ -363,7 +360,7 @@ for name, model in models.items():
     rmse_curves[name] = np.array(rmse)
 
 
-plt.figure(figsize=(18,5))
+plt.figure(figsize=(8,5))
 
 for name, rmse in rmse_curves.items():
     plt.plot(
@@ -381,8 +378,11 @@ plt.show()
 plt.tight_layout()
 plt.show()
 
+for name, rmse in rmse_curves.items():
+    print(name, rmse)
 
-# In[ ]:
+
+# In[22]:
 
 
 # Coefficients of the regression for all norms
@@ -410,138 +410,6 @@ plt.title("Dual-sPLS regression coefficients (optimal hyperparameters)")
 plt.legend()
 plt.tight_layout()
 plt.show()
-
-
-# In[ ]:
-
-
-# Beta coefficients of the regression for differents values of hyperparameter
-
-def plot_coeff_values(
-    models,
-    model_names,
-    X, y,
-    n_components,
-    ppnu_values,
-    indG=None,
-    fixed_params=None,
-    use_last_component=True,
-    cmap_name="viridis"
-):
-    n_models = len(models)
-
-    fig, axes = plt.subplots(
-        n_models, 1,
-        figsize=(12, 2.2 * n_models),
-        sharex=True
-    )
-
-    if n_models == 1:
-        axes = [axes]
-
-    cmap = plt.colormaps[cmap_name]
-    norm = colors.Normalize(
-        vmin=min(ppnu_values),
-        vmax=max(ppnu_values)
-    )
-
-    for ax, model_fun, name, params in zip(
-        axes, models, model_names, fixed_params
-    ):
-        for ppnu in ppnu_values:
-            try:
-                kwargs = params.copy()
-
-                if name in ["GLA", "GLB", "GLC"]:
-                    kwargs["ppnu"] = np.repeat(ppnu, indG.max())
-                    kwargs["indG"] = indG
-                else:
-                    kwargs["ppnu"] = ppnu
-
-                model = model_fun(
-                    X, y,
-                    n_components=n_components,
-                    **kwargs
-                )
-
-                k = -1 if use_last_component else 0
-                beta = model["Bhat"][:, k]
-
-                ax.plot(
-                    beta,
-                    color=cmap(norm(ppnu)),
-                    linewidth=1
-                )
-
-            except Exception:
-                continue
-
-        ax.axhline(0, color="black", linewidth=0.8)
-        ax.set_title(name, loc="left", fontsize=11)
-        ax.set_ylabel(r"$\beta$")
-
-        # --- Colorbar proprement attachée ---
-        sm = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
-        sm.set_array([])
-        cbar = fig.colorbar(
-            sm,
-            ax=ax,
-            orientation="vertical",
-            fraction=0.025,
-            pad=0.02
-        )
-        cbar.set_label(r"$ppnu$")
-
-    axes[-1].set_xlabel("Spectral variable index")
-
-    fig.suptitle(
-        "Dual-sPLS regression coefficients paths\n(color = ppnu)",
-        fontsize=14
-    )
-
-    plt.tight_layout()
-    plt.show()
-
-
-# In[ ]:
-
-
-# Params
-ppnu_values = np.linspace(0.01, 1.0, 8)
-
-models = [
-    dual_spls_lasso,
-    d_spls_ridge,
-    d_spls_ls,
-    dual_spls_gla_random,
-    dual_spls_glb,
-    dual_spls_glc
-]
-
-model_names = ["Lasso", "Ridge", "LS", "GLA", "GLB", "GLC"]
-
-fixed_params = [
-    {},                         # Lasso
-    {"nu2": 0.001},             # Ridge
-    {},                         # LS
-    {"verbose": False},         # GLA
-    {"verbose": False},         # GLB
-    {                           # GLC
-        "gamma": np.repeat(1.0 / nG, nG),
-        "verbose": False
-    }
-]
-
-plot_coeff_values(
-    models=models,
-    model_names=model_names,
-    X=X,
-    y=y,
-    n_components=n_comp,
-    ppnu_values=ppnu_values,
-    indG=indG,
-    fixed_params=fixed_params
-)
 
 
 # In[ ]:
