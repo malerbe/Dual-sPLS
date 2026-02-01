@@ -226,7 +226,7 @@ def dual_spls_gla(X, y, n_components, ppnu, indG, verbose=True):
         RES[:, k] = y.flatten() - pred_k
         
         if verbose:
-             print(f'Dual PLS ic={k+1} nbzeros={zerovar[:, k]}')
+             print(f'Dual PLS ic={k+1} nbzeros={zerovar[:, k]}, RMSE : {RMSE}')
 
     return {
         "Xmean": E_mean,
@@ -244,10 +244,11 @@ def dual_spls_gla(X, y, n_components, ppnu, indG, verbose=True):
         "type": "GLA"
     }
 
+######################################################################################################
 
-def dual_spls_gla_random(X, y, n_components, ppnu, indG, n_samples=1000, verbose=True, noise_level=1e-6):
+def dual_spls_gla_random(X, y, n_components, ppnu, indG, n_samples=1000, noise_level=1e-6, verbose=True):
     """
-    Dual-SPLS GLA avec Random Search amélioré pour éviter stagnation et explosion mémoire.
+    Dual-SPLS GLA avec Random Search stabilisé pour éviter divergence.
     
     Args:
         X: np.ndarray (n_samples, n_features)
@@ -298,6 +299,8 @@ def dual_spls_gla_random(X, y, n_components, ppnu, indG, n_samples=1000, verbose
 
         for ig in range(1, nG + 1):
             idx_group = np.where(indG == ig)[0]
+            if len(idx_group) == 0:
+                continue
             Zs = np.sort(np.abs(Z[idx_group]))
             d = len(Zs)
             Zsp = np.arange(1, d + 1) / d
@@ -308,11 +311,11 @@ def dual_spls_gla_random(X, y, n_components, ppnu, indG, n_samples=1000, verbose
             norm1Znu[ig-1] = np.linalg.norm(Znu[idx_group], 1)
             norm2Znu[ig-1] = np.linalg.norm(Znu[idx_group], 2)
 
-        mu = np.sum(norm2Znu)
-        mu = max(mu, 1e-6)  # éviter division par zéro
-        alpha = norm2Znu / mu
+        # Avoid division by zero
+        mu = max(np.sum(norm2Znu), 1e-6)
+        alpha = np.maximum(norm2Znu / mu, 1e-6)
         listeAlpha[:, k] = alpha
-        listeLambda[:, k] = nu / (mu * alpha + 1e-12)  # éviter NaN
+        listeLambda[:, k] = nu / (mu * alpha + 1e-12)
 
         # Random search for w
         ranges = [np.linspace(0, 1.0 / alpha[ig] / (1.0 + (nu[ig]*norm1Znu[ig]/(mu*alpha[ig])**2)), 10) 
@@ -326,7 +329,7 @@ def dual_spls_gla_random(X, y, n_components, ppnu, indG, n_samples=1000, verbose
         num_terms = comb * alpha[:nG-1] * (1 + (nu[:nG-1]*norm1Znu[:nG-1]/(mu*alpha[:nG-1])**2))
         denom = alpha[nG-1] * (1 + (nu[nG-1]*norm1Znu[nG-1]/(mu*alpha[nG-1])**2))
         num = 1 - np.sum(num_terms, axis=1)
-        comb_last = (num / denom).reshape(-1, 1)
+        comb_last = (num / (denom + 1e-12)).reshape(-1, 1)
         full_comb = np.hstack((comb, comb_last))
         full_comb = full_comb[full_comb[:, -1] >= 0]
 
@@ -337,17 +340,18 @@ def dual_spls_gla_random(X, y, n_components, ppnu, indG, n_samples=1000, verbose
             w_curr = np.zeros(p)
             for ig in range(1, nG+1):
                 idx_group = np.where(indG == ig)[0]
+                if len(idx_group) == 0:
+                    continue
                 w_curr[idx_group] = (full_comb[icomb, ig-1] / (mu*alpha[ig-1])) * Znu[idx_group]
 
             # Add small noise to break ties
             w_curr += np.random.normal(0, noise_level, size=p)
 
+            # Normalize w to avoid huge values
+            w_curr /= max(np.linalg.norm(w_curr), 1e-6)
+
             t_curr = E @ w_curr
-            norm_t = np.linalg.norm(t_curr)
-            if norm_t > 1e-10:
-                t_curr /= norm_t
-            else:
-                t_curr[:] = 0
+            t_curr /= max(np.linalg.norm(t_curr), 1e-6)
 
             yy_pred_temp = (X @ w_curr) + F_mean
             rmse = np.mean((y.flatten() - yy_pred_temp.flatten())**2)
@@ -357,7 +361,7 @@ def dual_spls_gla_random(X, y, n_components, ppnu, indG, n_samples=1000, verbose
 
         WW[:, k] = best_w
         t = E @ best_w
-        t /= (np.linalg.norm(t) + 1e-12)
+        t /= max(np.linalg.norm(t), 1e-6)
         TT[:, k] = t
 
         # Deflation
@@ -388,7 +392,7 @@ def dual_spls_gla_random(X, y, n_components, ppnu, indG, n_samples=1000, verbose
         RES[:, k] = y.flatten() - YY_pred[:, k]
 
         if verbose:
-            print(f"Dual PLS GLA ic={k+1}, nbzeros={np.sum(np.isclose(best_w, 0))}")
+            print(f"Dual PLS GLA ic={k+1}, nbzeros={np.sum(np.isclose(best_w, 0))}, max|w|={np.max(np.abs(best_w))}")
 
     return {
         "Xmean": E_mean,

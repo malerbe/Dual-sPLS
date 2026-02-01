@@ -1,7 +1,7 @@
 import numpy as np
 from dual_spls import utils
 
-def dual_spls_glc(X, y, n_components, ppnu, indG, gamma, verbose=True):
+def dual_spls_glc(X, y, n_components, ppnu, indG, gamma, noise_level=1e-6, verbose=True):
     """Dual-SPLS Group Lasso C regression algorithm.
 
     Args:
@@ -19,153 +19,99 @@ def dual_spls_glc(X, y, n_components, ppnu, indG, gamma, verbose=True):
     #### Specific Validation for GLC
     nG = np.max(indG)
     if len(gamma) != nG:
-        raise ValueError(f"Incorrect length of gamma. Expected {nG}, got {len(gamma)}")
-    
+        raise ValueError(f"gamma length must match nG ({nG})")
     if not np.isclose(np.sum(gamma), 1.0):
-        raise ValueError(f"Sum of gamma must be 1. Got {np.sum(gamma)}")
+        raise ValueError(f"gamma must sum to 1")
 
-    #### Center data
-    E, F = X.copy(), y.copy()
-    E, E_mean = utils.center_matrix(E)
-    F, F_mean = utils.center_matrix(F)
+    E = X.copy()
+    F = y.copy().reshape(-1,1)
+    E_mean = E.mean(axis=0)
+    F_mean = F.mean(axis=0)
+    E -= E_mean
+    F -= F_mean
 
-    if F.ndim == 1:
-        F = F.reshape(-1, 1)
+    N, p = X.shape
+    PP = np.array([np.sum(indG==u) for u in range(1,nG+1)])
 
-    #### Initializations
-    N, p = X.shape[0], X.shape[1] 
-    
-    # Intializations
-    PP = np.array([np.sum(indG == u) for u in range(1, nG + 1)])
-    
-    WW = np.zeros((p, n_components)) 
-    TT = np.zeros((N, n_components)) 
-    listeLambda = np.zeros((nG, n_components)) 
-    listeAlpha = np.zeros((nG, n_components)) # Algo uses Alpha explicitly here
-    Bhat = np.zeros((p, n_components))
+    WW = np.zeros((p,n_components))
+    TT = np.zeros((N,n_components))
+    Bhat = np.zeros((p,n_components))
+    YY_pred = np.zeros((N,n_components))
+    RES = np.zeros((N,n_components))
     intercept = np.zeros(n_components)
-    RES = np.zeros((N, n_components)) 
-    zerovar = np.zeros((nG, n_components), dtype=int)
-    YY_pred = np.zeros((N, n_components)) 
-    ind_diff0 = {} 
+    zerovar = np.zeros((nG,n_components),dtype=int)
+    listeLambda = np.zeros((nG,n_components))
+    listeAlpha = np.zeros((nG,n_components))
+    ind_diff0 = {}
 
-    # Temporary variables
-    nu = np.zeros(nG)
-    Znu = np.zeros(p)
-    w = np.zeros(p)
-    norm1Znu = np.zeros(nG)
-    norm2Znu = np.zeros(nG)
-    
-    Ec = E.copy() 
+    Ec = E.copy()
 
     for k in range(n_components):
-        # Step 1: dual-spls GLC logic:
-        ##############################################################################
-        F_col = F.reshape(-1, 1)
-        Z = np.transpose(E) @ F_col
-        Z = Z.reshape(-1)
+        Z = (E.T @ F).flatten()
+        nu = np.zeros(nG)
+        Znu = np.zeros(p)
+        norm1Znu = np.zeros(nG)
+        norm2Znu = np.zeros(nG)
+        w = np.zeros(p)
 
-        # 1. Optimizing nu(g) per group AND building Znu
-        for ig in range(1, nG + 1):
-            idx_group = np.where(indG == ig)[0]
-            
-            # --- Adaptative nu ---
+        for ig in range(1,nG+1):
+            idx_group = np.where(indG==ig)[0]
+            if len(idx_group)==0: continue
             Zs = np.sort(np.abs(Z[idx_group]))
             d = len(Zs)
-            Zsp = np.arange(1, d + 1) / d
-            iz = np.argmin(np.abs(Zsp - ppnu[ig-1])) 
-            
+            Zsp = np.arange(1,d+1)/d
+            iz = np.argmin(np.abs(Zsp - ppnu[ig-1]))
             nu[ig-1] = Zs[iz]
-
-            # --- Soft Thresholding ---
             val_group = Z[idx_group]
-            Znu[idx_group] = np.sign(val_group) * np.maximum(np.abs(val_group) - nu[ig-1], 0)
+            Znu[idx_group] = np.sign(val_group) * np.maximum(np.abs(val_group)-nu[ig-1],0)
+            norm1Znu[ig-1] = np.linalg.norm(Znu[idx_group],1)
+            norm2Znu[ig-1] = np.linalg.norm(Znu[idx_group],2)
 
-            # Norms per group
-            norm1Znu[ig-1] = np.linalg.norm(Znu[idx_group], 1)
-            norm2Znu[ig-1] = np.linalg.norm(Znu[idx_group], 2)
+        mu = max(np.sum(norm2Znu),1e-6)
+        alpha = np.maximum(norm2Znu/mu, 1e-6)
+        listeAlpha[:,k] = alpha
+        listeLambda[:,k] = nu / (mu*alpha + 1e-12)
 
-        # --- Modification 1: Global Parameters (Norm C specific) ---
-        # mu is sum of local L2 norms
-        mu = np.sum(norm2Znu)
-
-        # --- Modification 2: Calculating w with gamma weights ---
-        # Iterate again to compute w based on the computed mu
-        for ig in range(1, nG + 1):
-            idx_group = np.where(indG == ig)[0]
-            
-            if mu > 1e-15:
-                alpha = norm2Znu[ig-1] / mu
-                _lambda = nu[ig-1] / mu
-            else:
-                alpha = 0
-                _lambda = 0
-            
-            # Store parameters
-            listeAlpha[ig-1, k] = alpha
-            listeLambda[ig-1, k] = _lambda
-
-            # Formula: w_g = (gamma_g * Znu_g) / (alpha_g * norm2 + lambda_g * norm1)
+        for ig in range(1,nG+1):
+            idx_group = np.where(indG==ig)[0]
+            if len(idx_group)==0: continue
             numerator = gamma[ig-1] * Znu[idx_group]
-            denominator = (alpha * norm2Znu[ig-1]) + (_lambda * norm1Znu[ig-1])
-            
-            if denominator > 1e-15:
-                w[idx_group] = numerator / denominator
-            else:
-                w[idx_group] = 0.0
+            denominator = alpha[ig-1]*norm2Znu[ig-1] + listeLambda[ig-1,k]*norm1Znu[ig-1]
+            w[idx_group] = numerator / max(denominator,1e-12)
 
-        #### Compute t
+        # Add small noise & normalize
+        w += np.random.normal(0, noise_level, size=p)
+        w /= max(np.linalg.norm(w), 1e-6)
+
         t = E @ w
-        norm_t = np.linalg.norm(t)
-        if norm_t > 1e-10:
-            t = t / norm_t
-        else:
-            t = np.zeros_like(t)
+        t /= max(np.linalg.norm(t), 1e-6)
+        WW[:,k] = w
+        TT[:,k] = t
 
-        ##############################################################################
+        # Deflation
+        E -= t.reshape(-1,1) @ (t.reshape(-1,1).T @ E)
 
-        # Store results
-        WW[:, k], TT[:, k] = w.reshape(-1), t.reshape(-1)
-        
-        # Deflate E: 
-        E = E - t.reshape(-1, 1) @ (t.reshape(-1, 1).T @ E)
-
+        # Backsolve
         W_k = WW[:, :k+1]
         T_k = TT[:, :k+1]
-        L = np.transpose(T_k) @ Ec @ W_k # "backsolve"
-        L = np.triu(L) 
-
-        try:
-            L_inv = np.linalg.inv(L)
-        except:
-            L_inv = np.linalg.pinv(L)
-
+        L = np.triu(T_k.T @ Ec @ W_k)
+        try: L_inv = np.linalg.inv(L)
+        except: L_inv = np.linalg.pinv(L)
         bk = W_k @ L_inv @ T_k.T @ F
-        bk_flat = bk.flatten() 
-        Bhat[:, k] = bk_flat
-
+        bk_flat = bk.flatten()
+        Bhat[:,k] = bk_flat
         intercept[k] = (F_mean - E_mean @ bk).item()
 
-        # Zero variables : count almost zero coefficients per group
-        for ig in range(1, nG + 1):
-            idx_group = np.where(indG == ig)[0]
-            is_zero_g = np.isclose(Bhat[idx_group, k], 0)
-            zerovar[ig-1, k] = np.sum(is_zero_g)
+        for ig in range(1,nG+1):
+            idx_group = np.where(indG==ig)[0]
+            zerovar[ig-1,k] = np.sum(np.isclose(Bhat[idx_group,k],0))
 
-        # non-zero indices 
-        is_zero_global = np.isclose(bk_flat, 0)
-        indices_non_zero = np.where(~is_zero_global)[0]
-        ind_diff0[f"in.diff0_{k+1}"] = indices_non_zero.tolist()
+        ind_diff0[f"in.diff0_{k+1}"] = np.where(~np.isclose(bk_flat,0))[0].tolist()
+        YY_pred[:,k] = (X @ bk_flat) + intercept[k]
+        RES[:,k] = y.flatten() - YY_pred[:,k]
 
-        # Predictions
-        pred_k = (X @ bk_flat) + intercept[k]
-        YY_pred[:, k] = pred_k
-
-        # Residuals
-        RES[:, k] = y.flatten() - pred_k
-        
         if verbose:
-             print(f'Dual PLS GLC ic={k+1} nbzeros={zerovar[k]}')
+            print(f"Dual PLS GLC ic={k+1}, nbzeros={np.sum(np.isclose(w,0))}, max|w|={np.max(np.abs(w))}")
 
     return {
         "Xmean": E_mean,
