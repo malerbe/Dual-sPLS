@@ -6,9 +6,13 @@ src/dual_spls/GLB.py
 src/dual_spls/GLC.py
 src/dual_spls/LS.py
 src/dual_spls/__init__.py
+src/dual_spls/callist.py
+src/dual_spls/calvalxy.py
+src/dual_spls/get_bin_indices.py
 src/dual_spls/lasso.py
 src/dual_spls/ridge.py
 src/dual_spls/simulate.py
+src/dual_spls/split.py
 src/dual_spls/utils.py
 src/dual_spls.egg-info/PKG-INFO
 src/dual_spls.egg-info/SOURCES.txt

@@ -135,8 +135,9 @@ if __name__ == "__main__":
     simulation_results = simulate(n=n, p=p, nondes=nondes , sigmaondes=sigmaondes, sigma_y=sigma_y, coefs=coefs)
     X, y = simulation_results["X"], simulation_results["y"]
 
-    bin_indices = get_bin_indices(y, n_bins=10)
-    calList = get_calList(bin_indices, pcal=90)
+    n_bins = 10
+    bin_indices = get_bin_indices(y, n_bins=n_bins)
+    calList = get_calList(bin_indices, pcal=90, n_bins=n_bins)
 
     split(X, X_bin_indices=bin_indices, calList=calList)   
 
