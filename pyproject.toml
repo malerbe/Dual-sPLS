@@ -4,6 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dual_spls"
+version = 0.0.7
 authors = [
   { name="Louca Malerba", email="louca.malerba@student-cs.fr" },
 ]
@@ -23,7 +24,5 @@ dependencies = [
 [project.urls]
 "Homepage" = "https://github.com/malerbe/dual-spls"
 
-
-# Cette section dit à setuptools : "Le code est dans src/"
 [tool.setuptools.packages.find]
 where = ["src"]
