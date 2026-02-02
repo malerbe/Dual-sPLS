@@ -4,7 +4,7 @@ The goal of this repository is to reimplement the paper [Dual-sPLS: a family of 
 
 ## Usage
 
-To start using the repository, you can clone it:
+To start using the repository with the ability to modify it locally, you can clone it:
 
 ```
 git clone https://github.com/malerbe/Dual-sPLS.git
@@ -16,6 +16,14 @@ and then install it using pip:
 cd ./Dual-sPLS
 pip install -e . 
 ```
+
+To install and use the library without cloning it locally, it is also available on Pypi:
+
+```
+pip install dual-spls
+```
+
+[Pypi web page](https://pypi.org/project/dual-spls/)
 
 It is suggested to use the notebook `notebooks/predict_simulated.ipynb` as a "documentation" to understand how to use different features implemented in the library. Reading the docstrings and the commentaries in the code will allow a better understanding of what the arguments correspond to. 
 
