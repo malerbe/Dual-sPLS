@@ -4,7 +4,6 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dual_spls"
-version = "0.0.1"
 authors = [
   { name="Louca Malerba", email="louca.malerba@student-cs.fr" },
 ]
