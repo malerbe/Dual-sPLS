@@ -12,7 +12,6 @@ description = "Implémentation Python de Dual-sPLS basée sur Alsouki et al. (20
 readme = "README.md"
 requires-python = ">=3.9"
 
-# Ici, tu mets les bibliothèques nécessaires (regarde ton requirements.txt)
 dependencies = [
     "numpy",
     "pandas",
