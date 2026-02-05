@@ -44,4 +44,4 @@ It is then possible to fully understand the first production implementation `src
 ## Sources and original repository
 
 - Paper: [Dual-sPLS: a family of Dual Sparse Partial Least Squares regressions for feature selection and prediction with tunable sparsity; evaluation on simulated and near-infrared (NIR) data](https://arxiv.org/abs/2301.07206)
-- Original repository: [dual.spls](https://github.com/AlsoukiL/dual.spls)
+- Original repository: [dual.spls]([https://github.com/AlsoukiL/dual.spls](https://doi.org/10.1016/j.chemolab.2023.104813))
