@@ -59,5 +59,5 @@ if __name__ == "__main__":
 
     bin_indices = get_bin_indices(y, n_bins=10)
     print(bin_indices)
-    calList = get_calList(bin_indices, pcal=90)
+    calList = get_calList(bin_indices, pcal=90, n_bins=10)
     print(calList, calList.shape)

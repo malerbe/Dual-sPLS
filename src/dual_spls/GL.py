@@ -1,6 +1,4 @@
-import GLA
-import GLB
-import GLC
+from dual_spls import GLA, GLB, GLC
 
 def d_spls_GL(X, y, n_components, ppnu, indG, gamma=None, norm="A", verbose=False):
     """Wrapper dispatcher for Dual-SPLS Group Lasso variants."""
