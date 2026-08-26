@@ -70,7 +70,7 @@ def dual_spls_glc(X, y, n_components, ppnu, indG, gamma, noise_level=1e-6, verbo
         mu = max(np.sum(norm2Znu),1e-6)
         alpha = np.maximum(norm2Znu/mu, 1e-6)
         listeAlpha[:,k] = alpha
-        listeLambda[:,k] = nu / (mu*alpha + 1e-12)
+        listeLambda[:,k] = nu / mu
 
         for ig in range(1,nG+1):
             idx_group = np.where(indG==ig)[0]
